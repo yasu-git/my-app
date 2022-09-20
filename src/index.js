@@ -10,7 +10,7 @@ import './index.css';
       <button 
         className="square"
         // クリックしたときにマス目の状態を’Ｘ’に書き換える
-        // Boardで定義された関数を渡される。
+        // Boardでpropsされた関数を渡される。
         onClick={props.onClick}
       >
 
@@ -23,56 +23,21 @@ import './index.css';
 
 // 盤面を表している
 class Board extends React.Component {
-  // 盤面の結果を保持する
-  constructor(props) {
-    super(props);
-    this.state = {
-      squares: Array(9).fill(null),
-      xIsNext: true,
-    };
-  }
-
-  handleClick(i) {
-    
-    // sliceで配列をコピーを作成している
-    const squares = this.state.squares.slice();
-
-    // 勝敗がつくかマスが埋まったときreturnする；
-    if (calculateWinner(squares) || squares[i]) {
-      return;
-    }
-    
-    squares[i] = this.state.xIsNext ? 'X' : 'O';
-    this.setState({
-      squares: squares,
-      // クリックするたびにtrueかfalse反転する
-      xIsNext: !this.state.xIsNext,
-    });
-  }
 
   renderSquare(i) {
     return (
       <Square 
-        value={this.state.squares[i]}
-        onClick={() => this.handleClick(i)} 
+        // gameクラスで定義しているsquares配列を使用
+        value={this.props.squares[i]}
+        // gameクラスでonClickでしている関数をしようする。
+        onClick={() => this.props.onClick(i)} 
       />
     );
   }
 
   render() {
-    // 勝敗を表示するか次のプレーヤーを表示する
-    const winner = calculateWinner(this.state.squares);
-    let status;
-    if (winner) {
-      status = 'Winner: ' + winner;
-    } else {
-      status = 'Next player: ' + (this.state.xIsNext ? 'X' : 'O');
-    }
-
     return (
       <div>
-        <div className="status">{status}</div>
-        {/* 一番上の面ライン */}
         <div className="board-row">
           {this.renderSquare(0)}
           {this.renderSquare(1)}
@@ -102,23 +67,93 @@ class Game extends React.Component {
 
     super(props);
     this.state = {
-      history: [{
-        squares: Array(9).fill(null),
-      }],
-      xIsNext: true,
+      history: [
+        {
+        // 盤面の●×を記録する
+        squares: Array(9).fill(null)
+        }
+    ],
+      // 何番目の手かの数字
+      stepNumber: 0,
+      // プレイヤーがどちらかを判定する
+      xIsNext: true
+    };
+  }
+
+  handleClick(i) {
+    
+    // sliceで配列をコピーを作成している
+    const history = this.state.history.slice(0, this.state.stepNumber + 1);
+    const current = history[history.length - 1];
+    // 盤面の状態を保持する
+    const squares = current.squares.slice();
+
+    // 勝敗がつくかマスが埋まったときreturnする；
+    if (calculateWinner(squares) || squares[i]) {
+      return;
     }
+    
+    squares[i] = this.state.xIsNext ? 'X' : 'O';
+    this.setState({
+      history: history.concat([
+        {
+        squares: squares
+        }
+      ]),
+      // 履歴を記録する数字
+      stepNumber: history.length,
+      // クリックするたびにtrueかfalse反転する
+      xIsNext: !this.state.xIsNext
+    });
+  }
+
+  jumpTo(step){
+    this.setState({
+      stepNumber: step,
+      xIsNext: (step % 2) === 0
+    });
   }
 
   render() {
+
+    const history = this.state.history;
+    // stepNumberによって選択されている着手をレンダーする
+    const current = history[this.state.stepNumber];
+    // 勝利者を判定し保持する
+    const winner = calculateWinner(current.squares);
+
+    const moves = history.map((step, move) => {
+      const desc = move ?
+        'Go to move #' + move :
+        'Go to game start';
+      return (
+        <li key={move}>
+          <button onClick={() => this.jumpTo(move)}>{desc}</button>
+        </li>
+      );
+    });
+
+    let status;
+
+    if (winner) {
+      status = 'Winner: ' + winner;
+    } else {
+      status = 'Next player:' + (this.state.xIsNext ? 'X' : 'o');
+    }
+
+
     return (
       <div className="game">
         <div className="game-board">
           {/* ボードクラスを表示している */}
-          <Board />
+          <Board 
+            squares={current.squares}
+            onClick={i => this.handleClick(i)}
+          />
         </div>
         <div className="game-info">
-          <div>{/* status */}</div>
-          <ol>{/* TODO */}</ol>
+          <div>{status}</div>
+          <ol>{moves}</ol>
         </div>
       </div>
     );
